@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일 업로드 일괄 처리</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        /* Tailwind로 불가능한 최소한의 커스텀 스타일만 */
+        [x-cloak]{display:none}
+        .scrollbar-thin::-webkit-scrollbar{width:8px;height:8px}
+        .scrollbar-thin::-webkit-scrollbar-track{background:#f1f1f1}
+        .scrollbar-thin::-webkit-scrollbar-thumb{background:#888;border-radius:4px}
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover{background:#555}
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5c9ccc',
+                        'primary-dark': '#4a7ba5'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-200 h-screen overflow-hidden" x-data="fileApp()" x-cloak>
+    <!-- 메인 래퍼 -->
+    <div class="bg-white border border-gray-300 shadow-lg m-2.5 h-[calc(100vh-20px)] flex flex-col">
+        <!-- 헤더 -->
+        <div class="bg-gradient-to-b from-primary to-primary-dark text-white px-4 py-3 text-sm font-bold flex justify-between items-center">
+            <h1>파일첨부 (일괄 업로드)</h1>
+            <a href="#" class="text-white text-lg opacity-90 hover:opacity-100">✕</a>
+        </div>
+
+        <!-- 콘텐츠 -->
+        <div class="p-2.5 flex-1 flex flex-col overflow-hidden">
+            <!-- 안내 -->
+            <div class="bg-yellow-50 border border-yellow-300 p-3 mb-2.5 text-xs leading-relaxed">
+                <strong class="block mb-1.5 text-yellow-700">📖 사용 방법</strong>
+                1. 오른쪽 상단에 파일 업로드 (드래그 또는 클릭)<br>
+                2. Ctrl/Shift 클릭으로 파일 선택<br>
+                3. 선택한 파일을 테이블 행으로 드래그<br>
+                4. 하나의 파일을 여러 행에 매핑 가능
+            </div>
+
+            <!-- 메인 컨테이너 -->
+            <div class="flex gap-2.5 flex-1 overflow-hidden">
+                <!-- 왼쪽 패널 -->
+                <div class="flex-1 bg-white border border-gray-300 flex flex-col gap-2.5 overflow-hidden">
+                    <!-- 테이블 -->
+                    <div class="flex-1 overflow-x-auto overflow-y-auto border-b border-gray-300 scrollbar-thin" style="max-height:calc(100vh - 500px)">
+                        <table class="w-full text-xs">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr class="border-b border-gray-300">
+                                    <th class="p-2 w-10 text-center">선택</th>
+                                    <th class="p-2 w-[70px] text-center cursor-pointer hover:bg-gray-200" @click="sortTable('status')">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>상태</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('status')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[110px] text-left cursor-pointer hover:bg-gray-200" @click="sortTable('seqno')">
+                                        <div class="flex items-center gap-1">
+                                            <span>일련번호</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('seqno')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[85px] text-center cursor-pointer hover:bg-gray-200" @click="sortTable('code')">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>품목코드</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('code')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[180px] text-left cursor-pointer hover:bg-gray-200" @click="sortTable('name')">
+                                        <div class="flex items-center gap-1">
+                                            <span>품목명</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('name')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[80px] text-center cursor-pointer hover:bg-gray-200" @click="sortTable('docType')">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>서류종류</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('docType')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[80px] text-center cursor-pointer hover:bg-gray-200" @click="sortTable('note')">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>주의사항</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('note')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[70px] text-center cursor-pointer hover:bg-gray-200" @click="sortTable('exportCountry')">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>수출국</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('exportCountry')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[70px] text-center cursor-pointer hover:bg-gray-200" @click="sortTable('docManager')">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>담당자</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('docManager')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[100px] text-left cursor-pointer hover:bg-gray-200" @click="sortTable('comment')">
+                                        <div class="flex items-center gap-1">
+                                            <span>Comment</span>
+                                            <span class="text-[10px]" x-text="getSortIcon('comment')"></span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 w-[180px] text-left">첨부 파일</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in sortedTableData" :key="row.id">
+                                    <tr @dragover.prevent="dragOver=true"
+                                        @dragleave="dragOver=false"
+                                        @drop.prevent="dropFiles($event,row.id);dragOver=false"
+                                        :class="dragOver?'bg-blue-100 border-2 border-dashed border-blue-400':'hover:bg-gray-50'"
+                                        class="border-b border-gray-200">
+                                        <td class="p-1.5 w-10 text-center"><input type="checkbox" class="w-3.5 h-3.5"></td>
+                                        <td class="p-1.5 w-[70px] text-center" x-text="row.status"></td>
+                                        <td class="p-1.5 w-[110px]" x-text="row.seqno"></td>
+                                        <td class="p-1.5 w-[85px] text-center" x-text="row.code"></td>
+                                        <td class="p-1.5 w-[180px]" x-text="row.name"></td>
+                                        <td class="p-1.5 w-[80px] text-center text-[10px]" x-text="row.docType"></td>
+                                        <td class="p-1.5 w-[80px] text-center text-[10px]">
+                                            <span x-show="row.note" class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded" x-text="row.note"></span>
+                                        </td>
+                                        <td class="p-1.5 w-[70px] text-center text-[10px]" x-text="row.exportCountry"></td>
+                                        <td class="p-1.5 w-[70px] text-center text-[10px]" x-text="row.docManager"></td>
+                                        <td class="p-1.5 w-[100px] text-[10px] text-gray-600" x-text="row.comment"></td>
+                                        <td class="p-1.5 w-[180px]">
+                                            <div class="flex flex-col gap-1 min-h-[30px]">
+                                                <template x-if="!rowFiles[row.id]?.length">
+                                                    <span class="text-gray-400 text-[10px]">파일을 드래그하세요</span>
+                                                </template>
+                                                <template x-for="fileId in rowFiles[row.id]" :key="fileId">
+                                                    <div class="bg-blue-50 border border-blue-200 px-2 py-1 rounded text-[10px] flex items-center gap-2">
+                                                        <div class="w-5 h-5 flex items-center justify-center bg-primary text-white rounded text-[8px] font-bold flex-shrink-0" x-text="getFile(fileId)?.ext"></div>
+                                                        <div class="flex-1 overflow-hidden">
+                                                            <div class="text-gray-800 font-medium truncate" :title="getFile(fileId)?.name" x-text="getFile(fileId)?.name"></div>
+                                                            <div class="text-gray-500 text-[9px]" x-text="getFile(fileId)?.size"></div>
+                                                        </div>
+                                                        <button @click.stop="removeFileFromRow(row.id, fileId)" class="text-red-500 hover:text-red-700 flex-shrink-0 px-1" title="삭제">✕</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 메일 섹션 (간소화) -->
+                    <div class="p-2.5 border-t border-gray-300 bg-white overflow-y-auto" style="height:280px">
+                        <div class="text-[11px] font-bold mb-1 text-gray-700">▸ 메일 수신자</div>
+                        <textarea x-model="mailRecipients" placeholder="이메일 주소 (콤마 구분)"
+                            class="w-full p-1.5 border border-gray-300 text-[11px] resize-none h-12 mb-2 focus:outline-none focus:border-primary"></textarea>
+
+                        <div class="text-[11px] font-bold mb-1 text-gray-700">▸ 메일 코멘트</div>
+                        <textarea x-model="mailComment" placeholder="메일 내용을 입력하세요"
+                            class="w-full p-2 border border-gray-300 text-[11px] h-20 resize-none focus:outline-none focus:border-primary"></textarea>
+
+                        <div class="flex gap-1 flex-wrap pt-2.5">
+                            <a href="#" class="inline-block px-3 py-1 bg-white border border-gray-400 rounded text-[11px] hover:bg-gray-100">서류담당자 변경</a>
+                            <a href="#" class="inline-block px-3 py-1 bg-white border border-gray-400 rounded text-[11px] hover:bg-gray-100">일괄 선택</a>
+                            <a href="#" class="inline-block px-3 py-1 bg-white border border-gray-400 rounded text-[11px] hover:bg-gray-100">보완</a>
+                            <a href="#" class="inline-block px-3 py-1 bg-white border border-gray-400 rounded text-[11px] hover:bg-gray-100">보류</a>
+                            <a href="#" class="inline-block px-3 py-1 bg-white border border-gray-400 rounded text-[11px] hover:bg-gray-100">회신</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 오른쪽 패널 -->
+                <div class="w-[400px] bg-white border border-gray-300 flex flex-col h-full">
+                    <!-- 업로드 영역 -->
+                    <div @click="$refs.fileInput.click()"
+                         @dragover.prevent="uploadDrag=true"
+                         @dragleave="uploadDrag=false"
+                         @drop.prevent="handleUpload($event);uploadDrag=false"
+                         :class="uploadDrag?'border-primary bg-blue-50':'border-gray-400'"
+                         class="border-2 border-dashed p-5 text-center bg-gray-50 cursor-pointer m-2.5 transition-all">
+                        <p class="text-gray-600 text-sm">📁 파일을 Drag & Drop 하세요</p>
+                        <p class="text-gray-400 text-[11px] mt-1">또는 클릭하여 선택</p>
+                    </div>
+                    <input type="file" x-ref="fileInput" multiple class="hidden" @change="handleUpload($event)">
+
+                    <div class="bg-primary text-white px-2.5 py-1 text-[11px] text-center mx-2.5 rounded" x-text="'선택된 파일: '+selectedFiles.size+'개'"></div>
+
+                    <!-- 파일 헤더 -->
+                    <div class="bg-gray-100 border-b border-gray-300 p-2 flex items-center text-[11px] font-bold mx-2.5">
+                        <div class="w-[30px] text-center">선택</div>
+                        <div class="flex-1 pl-2.5">FILE</div>
+                        <div class="w-[60px] text-center">SIZE</div>
+                        <div class="w-[70px] text-center">등록일</div>
+                    </div>
+
+                    <!-- 파일 리스트 -->
+                    <div class="overflow-y-auto bg-white border-b border-gray-300 scrollbar-thin mx-2.5" style="max-height:300px">
+                        <template x-if="!uploadedFiles.length">
+                            <div class="p-10 text-center text-gray-400 text-[11px]">파일을 업로드해주세요</div>
+                        </template>
+                        <template x-for="(file,idx) in uploadedFiles" :key="file.id">
+                            <div draggable="true"
+                                 @dragstart="dragStart($event,file.id)"
+                                 @dragend="dragging=false"
+                                 @click="selectFile($event,file.id,idx)"
+                                 :class="{'bg-blue-100 border-l-4 border-primary':selectedFiles.has(file.id),'opacity-50':dragging&&selectedFiles.has(file.id)}"
+                                 class="p-2 border-b border-gray-200 cursor-pointer flex items-center gap-2 hover:bg-gray-50 transition-all select-none">
+                                <div class="w-[18px]"><input type="checkbox" :checked="selectedFiles.has(file.id)" class="w-3.5 h-3.5" @click.stop></div>
+                                <div class="w-6 h-6 flex items-center justify-center bg-blue-100 rounded text-[9px] font-bold text-primary" x-text="file.ext"></div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[10px] text-gray-800 mb-0.5 truncate" x-text="file.name"></div>
+                                    <div class="text-[9px] text-gray-500" x-text="file.size"></div>
+                                </div>
+                                <div class="w-[70px] text-center text-[10px] text-gray-600" x-text="today"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 버튼 -->
+            <div class="p-2.5 border-t border-gray-200 bg-gray-50 text-right mt-2">
+                <a href="#" class="inline-block px-3 py-1.5 bg-gradient-to-b from-primary to-primary-dark text-white rounded text-[11px] hover:from-blue-500">저장</a>
+                <a href="#" class="inline-block px-3 py-1.5 bg-gray-300 border border-gray-400 rounded text-[11px] ml-1 hover:bg-gray-400">닫기</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달 -->
+    <div x-show="modalOpen" @click.self="modalOpen=false"
+         class="fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center"
+         style="display:none">
+        <div class="bg-white border border-gray-400 shadow-2xl max-w-lg w-11/12 max-h-[70vh] overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-b from-primary to-primary-dark text-white text-sm font-bold p-2.5 border-b border-blue-800 flex justify-between items-center">
+                <span>첨부 파일 상세 목록</span>
+                <span @click="modalOpen=false" class="cursor-pointer text-xl leading-none opacity-90 hover:opacity-100">✕</span>
+            </div>
+            <div class="p-4 overflow-y-auto">
+                <template x-if="!modalFiles?.length">
+                    <div class="p-5 text-center text-gray-400">첨부된 파일이 없습니다.</div>
+                </template>
+                <template x-for="(file,idx) in modalFiles" :key="file.id">
+                    <div class="p-2 border-b border-gray-200 flex items-center gap-2 text-[11px]">
+                        <div class="w-[30px] text-center text-gray-600" x-text="idx+1"></div>
+                        <div class="w-7 h-7 flex items-center justify-center bg-blue-100 rounded text-[10px] font-bold text-primary" x-text="file.ext"></div>
+                        <div class="flex-1">
+                            <div class="text-gray-800 mb-0.5" x-text="file.name"></div>
+                            <div class="text-[10px] text-gray-500" x-text="file.size"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script src="./prototype-optimized.js"></script>
+</body>
+</html>
